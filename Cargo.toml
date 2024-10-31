@@ -1,0 +1,9 @@
+[package]
+name = "DirSearch"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lopdf = { version = "0.30.0", features = ["pom", "pom_parser"] }
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.3"
