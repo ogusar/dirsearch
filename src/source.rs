@@ -1,6 +1,5 @@
 use std::fmt;
-use std::hash::Hasher;
-use lopdf::Document;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
@@ -13,6 +12,12 @@ pub struct Source {
 impl Source {
     pub fn new(dir: String, file_name: String, page_number: usize) -> Self {
         Self { dir, file_name, page_number }
+    }
+
+    pub fn get_hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
     }
 }
 

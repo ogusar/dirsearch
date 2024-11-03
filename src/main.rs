@@ -1,39 +1,38 @@
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::env::args;
+use std::error::Error;
+use std::fmt::format;
 use std::hash::Hash;
 use std::io::{stdin, stdout, Write};
 use std::ops::Deref;
-use crate::files::{load_index, save_index};
-use crate::indexer::{make_index};
+use crate::index::Index;
+use crate::indexer::IndexBuilder;
 use crate::source::Source;
+use crate::search::SearchEngine;
 
 mod indexer;
 mod files;
 mod source;
 mod other;
+mod index;
+mod stop_words;
+mod search;
 
-const INDEX_FILE: &str = "index.bin";
 fn main() {
     let args: Vec<String> = args().collect();
     let dir: &str = &args[1];
-    let abs_index_file: String = format!("{}/{}", dir, INDEX_FILE);
     print_banner();
 
-    let index: HashMap<String, HashSet<Source>>;
-    match load_index(&abs_index_file) {
-        Ok(res) => {
-            index = res;
-        }
-        Err(_) => {
-            println!("Please wait, creating an index...");
-            index = make_index(String::from(dir));
-            save_index(&index, &abs_index_file);
-            println!("Save at {}", abs_index_file);
-        }
-    }
+    let mut index_builder = IndexBuilder::new(dir.to_string());
+    let index = index_builder.build().unwrap();
 
+    process_input(index);
+}
+
+fn process_input(index: Index) {
     let mut input = String::from("");
+    let search_engine = SearchEngine::new(index);
 
     loop {
         print!("Enter the keywords separated by a whitespace: > ");
@@ -43,50 +42,22 @@ fn main() {
         if input.trim() == "exit" {
             break;
         }
-        find_pages(&input, &index);
-    }
-}
 
-fn intersections<'a, T>(mut sets: impl Iterator<Item = &'a HashSet<T>>) -> HashSet<T>
-    where
-        T: Clone + Eq + Hash + 'a,
-{
-    match sets.next() {
-        Some(first) => sets.fold(first.clone(), |mut acc, set| {
-            acc.retain(|item| set.contains(item));
-            acc
-        }),
+        let results = search_engine.search(&input);
 
-        None => HashSet::new(),
-    }
-}
-
-fn find_pages(input: &String, index: &HashMap<String, HashSet<Source>>) {
-    let keywords = input
-        .trim()
-        .split_whitespace()
-        .map(|word| word.to_uppercase());
-
-    let mut sources_sets: Vec<HashSet<Source>> = Vec::new();
-    for keyword in keywords {
-        match index.get(&keyword) {
-            None => { continue }
-            Some(set) => { sources_sets.push(set.clone()) }
-        };
-        continue;
-    }
-
-    let sources: HashSet<Source> = intersections(sources_sets.iter());
-
-    if sources.is_empty() {
-        println!("No pages found. Try changing the keywords.");
-    }
-    else {
-        for source in sources {
-            println!("{}", source);
+        let mut i = 0;
+        for (source, score) in results {
+            if i == 5 {
+                break;
+            }
+            println!("{}, score: {}", source, score);
+            i += 1;
         }
+
+        input.clear();
     }
 }
+
 
 fn print_banner() {
     println!(r#"
