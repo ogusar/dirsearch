@@ -1,4 +1,5 @@
 use std::error::Error;
+
 use lopdf::Document;
 use rust_stemmers::{Algorithm, Stemmer};
 
@@ -7,7 +8,7 @@ use crate::index::{Index, RevIndexRecord};
 use crate::source::Source;
 use crate::stop_words::StopWords;
 
-const DB_NAME: &str = "/index";
+const DB_NAME: &str = "/.index";
 
 pub struct IndexBuilder {
     stop_words: StopWords,

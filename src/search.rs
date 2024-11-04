@@ -1,8 +1,8 @@
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
-use std::ops::Add;
-use crate::index::{Index, RevIndexRecord};
+use std::collections::HashMap;
+
 use rust_stemmers::{Algorithm, Stemmer};
+
+use crate::index::Index;
 use crate::source::Source;
 
 pub struct SearchEngine {

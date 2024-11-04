@@ -1,12 +1,13 @@
 use std::fmt;
 use std::hash::{DefaultHasher, Hash, Hasher};
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 pub struct Source {
-    dir: String,
-    file_name: String,
-    page_number: usize
+    pub dir: String,
+    pub file_name: String,
+    pub page_number: usize
 }
 
 impl Source {

@@ -3,8 +3,10 @@ use std::fs::create_dir_all;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 use std::str::{from_utf8, Utf8Error};
-use lmdb::{Environment, Database, WriteFlags, Transaction, Cursor, Stat};
+
+use lmdb::{Database, Environment, Stat, Transaction, WriteFlags};
 use serde::{Deserialize, Serialize};
+
 use crate::source::Source;
 
 pub struct Index {

@@ -1,15 +1,14 @@
-use std::collections::{HashMap, HashSet};
-use std::env;
 use std::env::args;
 use std::error::Error;
-use std::fmt::format;
 use std::hash::Hash;
 use std::io::{stdin, stdout, Write};
 use std::ops::Deref;
+use std::process::Command;
+
 use crate::index::Index;
 use crate::indexer::IndexBuilder;
-use crate::source::Source;
 use crate::search::SearchEngine;
+use crate::source::Source;
 
 mod indexer;
 mod files;
@@ -22,9 +21,8 @@ mod search;
 fn main() {
     let args: Vec<String> = args().collect();
     let dir: &str = &args[1];
-    print_banner();
 
-    let mut index_builder = IndexBuilder::new(dir.to_string());
+    let index_builder = IndexBuilder::new(dir.to_string());
     let index = index_builder.build().unwrap();
 
     process_input(index);
@@ -35,6 +33,9 @@ fn process_input(index: Index) {
     let search_engine = SearchEngine::new(index);
 
     loop {
+        let _ = Command::new("clear").status();
+        print_banner();
+        println!("------------------------------------------------");
         print!("Enter the keywords separated by a whitespace: > ");
         stdout().flush().expect("Failed to output message");
 
@@ -46,14 +47,12 @@ fn process_input(index: Index) {
         let results = search_engine.search(&input);
 
         let mut i = 0;
-        for (source, score) in results {
-            if i == 5 {
-                break;
-            }
+        let first_results: Vec<&(Source, f32)> = results.iter().take(5).collect();
+        for (source, score) in &first_results {
             println!("{}, score: {}", source, score);
-            i += 1;
         }
 
+        let _ = stdin().read_line(&mut String::new()).unwrap();
         input.clear();
     }
 }
