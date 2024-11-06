@@ -1,10 +1,7 @@
 use std::error::Error;
 use std::fs::create_dir_all;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
-use std::str::{from_utf8, Utf8Error};
-
-use lmdb::{Database, Environment, Stat, Transaction, WriteFlags};
+use lmdb::{Database, Environment, Transaction, WriteFlags};
 use serde::{Deserialize, Serialize};
 
 use crate::source::Source;
@@ -42,43 +39,47 @@ impl Index {
             .set_map_size(1048576000)
             .open(path)?;
 
-        let source_db = env.create_db(Some("source_db"), lmdb::DatabaseFlags::empty())
-            .expect("Failed to create 'source_db'");
-        let index_db = env.create_db(Some("index_db"), lmdb::DatabaseFlags::empty())
-            .expect("Failed to create 'index_db'");
+        let source_db = env.create_db(Some("source_db"), lmdb::DatabaseFlags::empty())?;
+        let index_db = env.create_db(Some("index_db"), lmdb::DatabaseFlags::empty())?;
 
         Ok(Self {source_db, index_db, env})
     }
 
-    pub fn add_source(&self, source: &Source) {
-        let mut txn = self.env.begin_rw_txn().expect("Failed to open a transaction");
-        txn.put(self.source_db, &source.get_hash().to_be_bytes(), &bincode::serialize(source).expect("Failed to serialize source"), WriteFlags::empty())
-            .expect("Failed to insert a source into source_db");
-        txn.commit()
-            .expect("Failed to commit transaction");
+    pub fn add_source(&self, source: &Source) -> Result<(), Box<dyn Error>> {
+        let mut txn = self.env.begin_rw_txn()?;
+        txn.put(self.source_db, &source.get_hash().to_be_bytes(), &bincode::serialize(source)?, WriteFlags::empty())?;
+        txn.commit()?;
+        Ok(())
     }
 
-    pub fn get_source(&self, key: &u64) -> Option<Source> {
-        let txn = self.env.begin_ro_txn().expect("Failed to open a transaction");
+    pub fn get_source(&self, key: &u64) -> Result<Source, Box<dyn Error>> {
+        let txn = self.env.begin_ro_txn()?;
         match txn.get(self.source_db, &key.to_be_bytes()) {
-            Ok(bytes) => { Some(bincode::deserialize(bytes).expect("Failed to deserialize source")) }
-            Err(_) => { None }
+            Ok(bytes) => { Ok(bincode::deserialize(bytes)?) }
+            Err(err) => { Err(err.into()) }
         }
     }
 
-    pub fn add_rev_index(&self, word: &String, record: &RevIndexRecord) {
-        let mut txn = self.env.begin_rw_txn().expect("Failed to open a transaction");
-        txn.put(self.index_db, word, &bincode::serialize(record).expect("Failed to serialize source"), WriteFlags::empty())
-            .expect("Failed to insert a source into index_db");
-        txn.commit()
-            .expect("Failed to commit transaction");
+    pub fn add_rev_index(&self, word: &String, record: RevIndexRecord) -> Result<(), Box<dyn Error>> {
+        let mut txn = self.env.begin_rw_txn()?;
+        txn.put(self.index_db, word, &bincode::serialize(&record)?, WriteFlags::empty())?;
+        txn.commit()?;
+        Ok(())
     }
 
-    pub fn get_rev_index(&self, word: &String) -> Option<RevIndexRecord> {
-        let txn = self.env.begin_ro_txn().expect("Failed to open a transaction");
-        match txn.get(self.index_db, word) {
-            Ok(bytes) => { Some(bincode::deserialize(bytes).expect("Failed to deserialize source")) }
-            Err(_) => { None }
+    pub fn get_rev_index(&self, word: &str) -> Result<Option<RevIndexRecord>, Box<dyn Error>> {
+        let txn = self.env.begin_ro_txn()?;
+        match txn.get(self.index_db, &word.to_string()) {
+            Ok(bytes) => { Ok(Some(bincode::deserialize::<RevIndexRecord>(bytes)?)) }
+            Err(_) => { Ok(None) } //Not found error
         }
+    }
+
+    pub fn delete(&self) -> Result<(), Box<dyn Error>> {
+        let mut txn = self.env.begin_rw_txn()?;
+        txn.clear_db(self.index_db)?;
+        txn.clear_db(self.source_db)?;
+        txn.commit()?;
+        Ok(())
     }
 }

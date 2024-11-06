@@ -1,5 +1,4 @@
 use std::error::Error;
-
 use lopdf::Document;
 use rust_stemmers::{Algorithm, Stemmer};
 
@@ -29,45 +28,54 @@ impl IndexBuilder {
         }
     }
 
-    pub fn build(self) -> Result<Index, Box<dyn Error>> {
+    pub fn get_index(self) -> Result<Index, Box<dyn Error>> {
         if !self.index_exists {
-            let files = get_pdf_files(&self.folder_path);
-            for file in files {
-                self.add_file(&file);
-            }
+            self.build_index()
+        } else {
+            Ok(self.index)
         }
+    }
+
+    fn build_index(self) -> Result<Index, Box<dyn Error>> {
+        let files = get_pdf_files(&self.folder_path);
+        println!("{} files detected:", files.len());
+        files.iter().for_each(|file| println!("\t{file}"));
+        for file in files {
+            self.add_file(&file)?;
+        }
+
         Ok(self.index)
     }
 
-    fn add_file(&self, file_path: &String) {
-        match Document::load(self.folder_path.to_string() + "/" + file_path) {
-            Ok(document) => { self.add_pages(file_path, document) }
-            Err(err) => { println!("Failed to read the PDF {}: {}", file_path, err); }
-        }
+    pub fn rebuild_index(self) -> Result<(), Box<dyn Error>> {
+        self.index.delete()?;
+        self.build_index()?;
+        Ok(())
     }
 
-    fn add_pages(&self, file_path: &String, document: Document) {
+    fn add_file(&self, file_path: &String) -> Result<(), Box<dyn Error>> {
+        let document =  Document::load(self.folder_path.to_string() + "/" + file_path)?;
+        self.add_pages(file_path, document)?;
+        Ok(())
+    }
+
+    fn add_pages(&self, file_path: &String, document: Document) -> Result<(), Box<dyn Error>> {
         let number_of_pages = document.page_iter().count();
         for i in 1..=number_of_pages {
-            let page_text_result = document.extract_text(&[i as u32]);
-            match page_text_result {
-                Ok(page) => { self.add_page(file_path, &page, &i) }
-                Err(err) => { println!("Failed to read page {}: {}", i, err); }
-            }
+            let page = document.extract_text(&[i as u32])?;
+            self.add_page(file_path, &page, &i)?;
         }
+        Ok(())
     }
 
-    fn add_page(&self, file_path: &String, page: &String, page_number: &usize) {
+    fn add_page(&self, file_path: &String, page: &String, page_number: &usize) -> Result<(), Box<dyn Error>> {
         let keywords: Vec<String> = self.get_keywords(page);
         let new_source = &Source::new(self.folder_path.clone(), file_path.to_string(), *page_number);
 
-        self.index.add_source(&new_source);
-        let mut rev_index: RevIndexRecord;
+        self.index.add_source(&new_source)?;
         for keyword in keywords {
-            match self.index.get_rev_index(&keyword) {
-                None => {
-                    rev_index = RevIndexRecord::new(1, vec![(new_source.get_hash(), 1)])
-                }
+            let rev_index: RevIndexRecord;
+            match self.index.get_rev_index(&keyword)? {
                 Some(old_rev_index) => {
                     let mut new_sources = old_rev_index.sources;
                     for i in 0..new_sources.len() {
@@ -77,15 +85,18 @@ impl IndexBuilder {
                             continue;
                         }
                         if i == new_sources.len() - 1 {
-                            new_sources.push((new_source.get_hash(), 1))
+                            new_sources.push((new_source.get_hash(), 1));
                         }
                     }
-                    rev_index = RevIndexRecord::new(old_rev_index.freq + 1, new_sources)
+                    rev_index = RevIndexRecord::new(old_rev_index.freq + 1, new_sources);
+                }
+                None => {
+                    rev_index = RevIndexRecord::new(1, vec![(new_source.get_hash(), 1)])
                 }
             }
-
-            self.index.add_rev_index(&keyword, &rev_index);
+            self.index.add_rev_index(&keyword, rev_index)?;
         }
+        Ok(())
     }
 
     fn get_keywords(&self, text: &String) -> Vec<String> {
