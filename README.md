@@ -9,7 +9,7 @@
 
 ## Introduction
 
-DirSearch is a search engine for PDF documents. 
+DirSearch is a search engine for PDF documents.
 What makes it special is that it is made for searching data across any number of PDF files that reside in the same folder.
 It accepts one or more keywords and returns a list of pages with the most related content, akin Google Search or other search engines.
 
@@ -62,7 +62,7 @@ Let me give you an example. While testing, I used 9 presentations from my Roboti
 Word "Robot" and derivatives have around 100 mentions while word "Kinematic" is used twice as rarely. 
 In a case when search keywords include both "Robot" and "Kinematic", the latter is given priority.  
 
-### Score
+## Score
 In order to numerically estimate which page is best suited, each is provided a score relative to the search keywords.
 It is calculated as follows:
 
@@ -70,3 +70,14 @@ It is calculated as follows:
 
 Where n is the number of keywords, k_count is the number of occurrences of a keyword on the page, 
 and k_freq is the aforementioned **frequency counter**.
+
+## Further Steps
+The project resembles a minimal version of a search engine. 
+There are a few things to add to improve usability and experience:
+- Accounting for keyword proximity (*"robotic hand"* should be shown before *"robotic ... hand"*)
+- Synonym bindings
+- Rendering or opening PDF pages that are shown.
+
+## Screenshots
+
+![Screenshot](src/Screenshot.png)
