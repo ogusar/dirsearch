@@ -41,7 +41,11 @@ impl IndexBuilder {
         println!("{} files detected:", files.len());
         files.iter().for_each(|file| println!("\t{file}"));
         for file in files {
-            self.add_file(&file)?;
+            let res = self.add_file(&file);
+            if res.is_err() {
+                println!("Failed to scan {}", &file);
+                println!("Error: {}", res.err().unwrap());
+            }
         }
 
         Ok(self.index)
